@@ -39,24 +39,17 @@ export type State = {
   message?: string | null;
 };
 
+// ============================================
+// CREATE INVOICE
+// ============================================
 export async function createInvoice(prevState: State, formData: FormData) {
-  console.log('🔍 CREATE INVOICE - Starting...');
-  
-  // Validasi form
   const validatedFields = CreateInvoice.safeParse({
     customerId: formData.get('customerId'),
     amount: formData.get('amount'),
     status: formData.get('status'),
   });
 
-  console.log('📝 Form Data:', {
-    customerId: formData.get('customerId'),
-    amount: formData.get('amount'),
-    status: formData.get('status'),
-  });
-
   if (!validatedFields.success) {
-    console.log('❌ Validation failed:', validatedFields.error.flatten().fieldErrors);
     return {
       errors: validatedFields.error.flatten().fieldErrors,
       message: 'Missing Fields. Failed to Create Invoice.',
@@ -67,51 +60,36 @@ export async function createInvoice(prevState: State, formData: FormData) {
   const amountInCents = amount * 100;
   const date = new Date().toISOString().split('T')[0];
 
-  console.log('✅ Data to insert:', { customerId, amountInCents, status, date });
-
   try {
-    console.log('💾 Attempting database insert...');
-    
-    const result = await sql`
+    await sql`
       INSERT INTO invoices (customer_id, amount, status, date)
       VALUES (${customerId}, ${amountInCents}, ${status}, ${date})
-      RETURNING *
     `;
-    
-    console.log('✅ Insert successful:', result);
   } catch (error) {
-    console.error('❌ Database error details:', error);
     return {
       message: 'Database Error: Failed to Create Invoice.',
     };
   }
 
-  console.log('🔄 Revalidating and redirecting...');
   revalidatePath('/dashboard/invoices');
   redirect('/dashboard/invoices');
 }
 
+// ============================================
+// UPDATE INVOICE
+// ============================================
 export async function updateInvoice(
   id: string,
   prevState: State,
   formData: FormData,
 ) {
-  console.log('🔍 UPDATE INVOICE - Starting...', { id });
-  
   const validatedFields = UpdateInvoice.safeParse({
     customerId: formData.get('customerId'),
     amount: formData.get('amount'),
     status: formData.get('status'),
   });
 
-  console.log('📝 Form Data:', {
-    customerId: formData.get('customerId'),
-    amount: formData.get('amount'),
-    status: formData.get('status'),
-  });
-
   if (!validatedFields.success) {
-    console.log('❌ Validation failed:', validatedFields.error.flatten().fieldErrors);
     return {
       errors: validatedFields.error.flatten().fieldErrors,
       message: 'Missing Fields. Failed to Update Invoice.',
@@ -121,45 +99,38 @@ export async function updateInvoice(
   const { customerId, amount, status } = validatedFields.data;
   const amountInCents = amount * 100;
 
-  console.log('✅ Data to update:', { id, customerId, amountInCents, status });
-
   try {
-    console.log('💾 Attempting database update...');
-    
-    const result = await sql`
+    await sql`
       UPDATE invoices
       SET customer_id = ${customerId}, amount = ${amountInCents}, status = ${status}
       WHERE id = ${id}
-      RETURNING *
     `;
-    
-    console.log('✅ Update successful:', result);
   } catch (error) {
-    console.error('❌ Database error details:', error);
     return { 
       message: 'Database Error: Failed to Update Invoice.' 
     };
   }
 
-  console.log('🔄 Revalidating and redirecting...');
   revalidatePath('/dashboard/invoices');
   redirect('/dashboard/invoices');
 }
 
+// ============================================
+// DELETE INVOICE - FIXED VERSION
+// ============================================
 export async function deleteInvoice(id: string) {
-  console.log('🗑️ DELETE INVOICE - Starting...', { id });
-  
   try {
     await sql`DELETE FROM invoices WHERE id = ${id}`;
-    console.log('✅ Delete successful');
     revalidatePath('/dashboard/invoices');
-    return { message: 'Deleted Invoice.' };
   } catch (error) {
-    console.error('❌ Delete error:', error);
-    return { message: 'Database Error: Failed to Delete Invoice.' };
+    // Jangan return message, lempar error agar bisa di-handle
+    throw new Error('Failed to Delete Invoice');
   }
 }
 
+// ============================================
+// AUTHENTICATE
+// ============================================
 export async function authenticate(
   prevState: string | undefined,
   formData: FormData,
